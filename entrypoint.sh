@@ -29,6 +29,9 @@ NC='\033[0m' # No Color
 ## === DEFINE FUNCTIONS ===
 #
 # Runs SteamCMD with specified variables and performs error handling.
+
+numactl --physcpubind=+0 ${STEAMCMD_DIR}/steamcmd.sh "+login \"${STEAM_USER}\" \"${STEAM_PASS}\" \"${STEAM_CODE}\"" +quit
+
 function RunSteamCMD { #[Input: int server=0 mod=1 optional_mod=2; int id]
     # Clear previous SteamCMD log
     if [[ -f "${STEAMCMD_LOG}" ]]; then
@@ -47,9 +50,9 @@ function RunSteamCMD { #[Input: int server=0 mod=1 optional_mod=2; int id]
 
         # Check if updating server or mod
         if [[ $1 == 0 ]]; then # Server
-            numactl --physcpubind=+0 ${STEAMCMD_DIR}/steamcmd.sh +force_install_dir /home/container "+login \"${STEAM_USER}\" \"${STEAM_PASS}\" \"${STEAM_CODE}\"" +app_update $2 $extraFlags $validateServer +quit | tee -a "${STEAMCMD_LOG}"
+            numactl --physcpubind=+0 ${STEAMCMD_DIR}/steamcmd.sh +force_install_dir /home/container "+login \"${STEAM_USER}\"" +app_update $2 $extraFlags $validateServer +quit | tee -a "${STEAMCMD_LOG}"
         else # Mod
-            numactl --physcpubind=+0 ${STEAMCMD_DIR}/steamcmd.sh "+login \"${STEAM_USER}\" \"${STEAM_PASS}\" \"${STEAM_CODE}\"" +workshop_download_item $GAME_ID $2 +quit | tee -a "${STEAMCMD_LOG}"
+            numactl --physcpubind=+0 ${STEAMCMD_DIR}/steamcmd.sh "+login \"${STEAM_USER}\"" +workshop_download_item $GAME_ID $2 +quit | tee -a "${STEAMCMD_LOG}"
         fi
 
         # Error checking for SteamCMD
