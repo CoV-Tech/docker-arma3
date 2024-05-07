@@ -29,13 +29,16 @@ NC='\033[0m' # No Color
 ## === DEFINE FUNCTIONS ===
 #
 # Runs SteamCMD with specified variables and performs error handling.
-
-numactl --physcpubind=+0 ${STEAMCMD_DIR}/steamcmd.sh "+login \"${STEAM_USER}\" \"${STEAM_PASS}\" \"${STEAM_CODE}\"" +quit
+RUN_WITH_CODE=0
 
 function RunSteamCMD { #[Input: int server=0 mod=1 optional_mod=2; int id]
     # Clear previous SteamCMD log
     if [[ -f "${STEAMCMD_LOG}" ]]; then
         rm -f "${STEAMCMD_LOG:?}"
+    fi
+
+    if [[ ${RUN_WITH_CODE} > 1 ]]; then
+        exit 1
     fi
 
     updateAttempt=0
@@ -48,11 +51,21 @@ function RunSteamCMD { #[Input: int server=0 mod=1 optional_mod=2; int id]
             sleep 3
         fi
 
+
+        credentials="\"${STEAM_USER}\""
+        if [[ ${RUN_WITH_CODE} == 1 ]]; then
+            if [[ -n ${STEAM_CODE} ]] then
+                credentials="\"${STEAM_USER}\" \"${STEAM_PASS}\" \"${STEAM_CODE}\""
+            else
+                credentials="\"${STEAM_USER}\" \"${STEAM_PASS}\""
+            fi
+        fi
+
         # Check if updating server or mod
         if [[ $1 == 0 ]]; then # Server
-            numactl --physcpubind=+0 ${STEAMCMD_DIR}/steamcmd.sh +force_install_dir /home/container "+login \"${STEAM_USER}\"" +app_update $2 $extraFlags $validateServer +quit | tee -a "${STEAMCMD_LOG}"
+            numactl --physcpubind=+0 ${STEAMCMD_DIR}/steamcmd.sh +force_install_dir /home/container "+login $credentials" +app_update $2 $extraFlags $validateServer +quit | tee -a "${STEAMCMD_LOG}"
         else # Mod
-            numactl --physcpubind=+0 ${STEAMCMD_DIR}/steamcmd.sh "+login \"${STEAM_USER}\"" +workshop_download_item $GAME_ID $2 +quit | tee -a "${STEAMCMD_LOG}"
+            numactl --physcpubind=+0 ${STEAMCMD_DIR}/steamcmd.sh "+login $credentials\"" +workshop_download_item $GAME_ID $2 +quit | tee -a "${STEAMCMD_LOG}"
         fi
 
         # Error checking for SteamCMD
@@ -73,12 +86,17 @@ function RunSteamCMD { #[Input: int server=0 mod=1 optional_mod=2; int id]
                 break
             # Fatal errors
             elif [[ -n $(grep -i "Invalid Password\|two-factor\|No subscription" "${STEAMCMD_LOG}") ]]; then # Wrong username/password, Steam Guard is turned on, or host is using anonymous account
-                echo -e "\n${RED}[UPDATE]: Cannot login to Steam - Improperly configured account and/or credentials"
-                echo -e "\t${YELLOW}Please contact your administrator/host and give them the following message:${NC}"
-                echo -e "\t${CYAN}Your Egg, or your client's server, is not configured with valid Steam credentials.${NC}"
-                echo -e "\t${CYAN}Either the username/password is wrong, or Steam Guard is not properly configured"
-                echo -e "\t${CYAN}according to this egg's documentation/README.${NC}\n"
-                exit 1
+                RUN_WITH_CODE=$((${RUN_WITH_CODE}+1))
+                if [[ ${RUN_WITH_CODE} > 1 ]]; then
+                    echo -e "\n${RED}[UPDATE]: Cannot login to Steam - Improperly configured account and/or credentials"
+                    echo -e "\t${YELLOW}Please contact your administrator/host and give them the following message:${NC}"
+                    echo -e "\t${CYAN}Your Egg, or your client's server, is not configured with valid Steam credentials.${NC}"
+                    echo -e "\t${CYAN}Either the username/password is wrong, or Steam Guard is not properly configured"
+                    echo -e "\t${CYAN}according to this egg's documentation/README.${NC}\n"
+                    exit 1
+                else
+                    updateAttempt=$((updateAttempt-1))
+                fi
             elif [[ -n $(grep -i "Download item" "${STEAMCMD_LOG}") ]]; then # Steam account does not own base game for mod downloads, or unknown
                 echo -e "\n${RED}[UPDATE]: Cannot download mod - Download failed"
                 echo -e "\t${YELLOW}While unknown, this error is likely due to your host's Steam account not owning the base game.${NC}"
