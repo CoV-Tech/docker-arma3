@@ -54,7 +54,7 @@ function RunSteamCMD { #[Input: int server=0 mod=1 optional_mod=2; int id]
 
         credentials="\"${STEAM_USER}\""
         if [[ ${RUN_WITH_CODE} == 1 ]]; then
-            if [[ -n ${STEAM_CODE} ]] then
+            if [[ -n ${STEAM_CODE} ]]; then
                 credentials="\"${STEAM_USER}\" \"${STEAM_PASS}\" \"${STEAM_CODE}\""
             else
                 credentials="\"${STEAM_USER}\" \"${STEAM_PASS}\""
